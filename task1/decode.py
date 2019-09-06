@@ -1,27 +1,75 @@
 import base64
+import os
 import xml.etree.ElementTree as et
 from bs4 import BeautifulSoup, Comment
+from statistics import mean
 
 
 class Document:
     def __init__(self, content, doc_id, url):
-        self.content = content
         self.doc_id = doc_id
         self.url = url
-        self.text = parse_html_to_text(self.content)
-        self.content_urls = parse_html_to_links(self.content)
+        self.content = content
+        self.text = self.parse_html_to_text()
+        self.words = list(filter(lambda s: any(ch.isalpha() for ch in s), self.text.split()))
+
+    def calc_doc_stats(self):
+        content_urls = self.parse_html_to_links()
+        text_bytes_size = string_size_in_bytes(self.text)
+        html_bytes_size = string_size_in_bytes(self.content)
+        ratio = html_bytes_size / text_bytes_size
+        return DocumentStat(self.doc_id, self.url, content_urls, len(self.words), html_bytes_size, ratio)
+
+    def parse_html_to_text(self):
+        def extract_comments(soup):
+            comments = soup.findAll(text=lambda text: isinstance(text, Comment))
+            [comment.extract() for comment in comments]
+            return soup
+
+        soup = BeautifulSoup(self.content, 'html.parser')
+        soup = extract_comments(soup)
+        soup = BeautifulSoup(soup.get_text(separator=" "), 'html.parser')
+        soup = extract_comments(soup)
+        return soup.get_text(separator=" ")
+
+    def parse_html_to_links(self):
+        soup = BeautifulSoup(self.content, 'html.parser')
+        return [link.get('href') for link in soup.find_all('a')]
 
 
-res_file = open("result.txt", "w+")
-doc_lengths_in_words_file = open("doc_length_in_words.txt", "w+")
-doc_lengths_in_bytes_file = open("doc_length_in_bytes.txt", "w+")
-doc_to_html_volume_ratio_file = open("doc_to_html_volume_ratio.txt", "w+")
+class DocumentStat:
+    def __init__(self, doc_id, url, content_urls, words_cnt, bytes_cnt, text_to_html_ratio):
+        self.doc_id = doc_id
+        self.url = url
+        self.words_cnt = words_cnt
+        self.bytes_cnt = bytes_cnt
+        self.text_to_html_ratio = text_to_html_ratio
+        self.content_urls = content_urls
+
+
+def string_size_in_bytes(s):
+    return len(s.encode('cp1251'))
+
+
+def decode_base64_cp1251(s):
+    return base64.b64decode(s).decode('cp1251')
+
+
+def average_doc_size_in_words(docs):
+    return mean([doc.words_cnt for doc in docs])
+
+
+def average_doc_size_in_bytes(docs):
+    return mean([doc.bytes_cnt for doc in docs])
+
+
+def average_doc_text_to_html_ratio(docs):
+    return mean([doc.text_to_html_ratio for doc in docs])
 
 
 def parse_xml(filename):
     tree = et.parse(filename)
     root = tree.getroot()
-    documents = []
 
     for child in root:
         if child.tag == "document":
@@ -29,84 +77,18 @@ def parse_xml(filename):
             url = child[1].text
             doc_id = int(child[2].text)
             doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
-
-            doc_lengths_in_words_file.write(str(len(split_into_words(doc.text))) + " ")
-            doc_lengths_in_bytes_file.write(str(string_length_in_bytes(doc.text)) + " ")
-            ratio = string_length_in_bytes(doc.text) / string_length_in_bytes(doc.content)
-            doc_to_html_volume_ratio_file.write(str(ratio) + " ")
-
             documents.append(doc)
-
-    return documents
-
-
-def decode_base64_cp1251(s):
-    return base64.decodebytes(bytes(s, 'cp1251')).decode('cp1251')
+        break
 
 
-def parse_html_to_text(html_string):
-    def extract_comments(soup):
-        comments = soup.findAll(text=lambda text: isinstance(text, Comment))
-        [comment.extract() for comment in comments]
-        return soup
-
-    soup = BeautifulSoup(html_string, 'html.parser')
-    soup = extract_comments(soup)
-    soup = BeautifulSoup(soup.get_text(separator=" "), 'html.parser')
-    soup = extract_comments(soup)
-    return soup.get_text(separator=" ")
-
-
-def parse_html_to_links(html_string):
-    soup = BeautifulSoup(html_string, 'html.parser')
-    return [link.get('href') for link in soup.find_all('a')]
-
-
-def split_into_words(string):
-    return list(filter(lambda s: any(ch.isalpha() for ch in s), string.split()))
-
-
-def average_doc_size_in_words(docs):
-    av = 0
-    for doc in docs:
-        words = split_into_words(doc.text)
-        av += len(words)
-    return av / len(docs)
-
-
-def string_length_in_bytes(s):
-    return len(s.encode('cp1251'))
-
-
-def average_doc_size_in_bytes(docs):
-    av = 0
-    for doc in docs:
-        av += string_length_in_bytes(doc.text)
-    return av / len(docs)
-
-
-def average_doc_text_to_html_in_words(docs):
-    av = 0
-    for doc in docs:
-        av += string_length_in_bytes(doc.text) / string_length_in_bytes(doc.content)
-    return av / len(docs)
-
+XML_FOLDER = "byweb_for_course"
 
 if __name__ == '__main__':
-    docs = parse_xml("byweb.0.xml")
+    documents = []
+    for filename in os.listdir(XML_FOLDER):
+        if filename.endswith(".xml"):
+            parse_xml(XML_FOLDER + os.sep + filename)
+        break
 
-    res_file.write("documents: " + str(len(docs)))
-    res_file.write("\n")
-    res_file.write(str(average_doc_size_in_words(docs)))
-    res_file.write("\n")
-    res_file.write(str(average_doc_size_in_bytes(docs)))
-    res_file.write("\n")
-    res_file.write((str(average_doc_text_to_html_in_words(docs))))
-
-    doc_lengths_in_words = [len(split_into_words(doc.text)) for doc in docs]
-    doc_lengths_in_bytes = [string_length_in_bytes(doc.text) for doc in docs]
-
-    res_file.write("\n")
-    res_file.write(str(doc_lengths_in_words))
-    res_file.write("\n")
-    res_file.write(str(doc_lengths_in_bytes))
+    for doc in documents:
+        print(doc.text)
