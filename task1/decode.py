@@ -21,15 +21,21 @@ class Document:
         return DocumentStat(self.doc_id, self.url, content_urls, len(self.words), html_bytes_size, ratio)
 
     def parse_html_to_text(self):
-        def extract_comments(soup):
+        def decompose_comments(soup):
             comments = soup.findAll(text=lambda text: isinstance(text, Comment))
-            [comment.extract() for comment in comments]
+            for comment in comments:
+                comment.extract()
             return soup
 
+        def decompose_js(soup):
+            for script in soup(["script", "style"]):
+                script.decompose()
+
         soup = BeautifulSoup(self.content, 'html.parser')
-        soup = extract_comments(soup)
+        decompose_js(soup)
+        soup = decompose_comments(soup)
         soup = BeautifulSoup(soup.get_text(separator=" "), 'html.parser')
-        soup = extract_comments(soup)
+        soup = decompose_comments(soup)
         return soup.get_text(separator=" ")
 
     def parse_html_to_links(self):
