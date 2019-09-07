@@ -3,6 +3,7 @@ import os
 
 STOP_WORDS_FOLDER = "stopwords"
 
+
 class Dictionary:
     def __init__(self):
         self.dict = defaultdict(lambda: DictionaryEntry())
