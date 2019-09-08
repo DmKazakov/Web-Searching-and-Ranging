@@ -12,18 +12,18 @@ class LinkGraph:
     def show(self):
         for node in self.nodes.values():
             for url in node.neighbors:
-                if url in self.nodes:
+                if url != node.url and url in self.nodes:
                     node.outdeg += 1
                     self.nodes[url].indeg += 1
 
         for node in self.nodes.values():
             if node.indeg > 0 or node.outdeg > 0:
-                self.net.add_node(node.url, title=node.url, size=node.indeg)
+                self.net.add_node(node.url, title=node.url, size=node.indeg, label=' ')
 
         for node in self.nodes.values():
             for url in node.neighbors:
                 try:
-                    self.net.add_edge(node.url, url)
+                    self.net.add_edge(node.url, url, physics=False)
                 except:
                     pass
 
