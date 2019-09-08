@@ -18,14 +18,15 @@ class LinkGraph:
 
         for node in self.nodes.values():
             if node.indeg > 0 or node.outdeg > 0:
-                self.net.add_node(node.url, title=node.url, size=node.indeg, label=' ')
+                self.net.add_node(node.url, title=node.url, size=node.indeg, label=' ', physics=False)
 
         for node in self.nodes.values():
             for url in node.neighbors:
-                try:
-                    self.net.add_edge(node.url, url, physics=False)
-                except:
-                    pass
+                if url != node.url:
+                    try:
+                        self.net.add_edge(node.url, url, physics=False)
+                    except:
+                        pass
 
         return self.net.show("links.html")
 
