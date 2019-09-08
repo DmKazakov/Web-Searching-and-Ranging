@@ -2,14 +2,14 @@ from pyvis.network import Network
 
 
 class LinkGraph:
-    def __init__(self):
+    def __init__(self, ):
         self.net = Network(notebook=True, directed=True)
         self.nodes = {}
 
     def add_document(self, doc):
         self.nodes[doc.url] = Node(doc.url, doc.content_urls)
 
-    def show(self):
+    def show(self, node_physics=False, edge_physics=False):
         for node in self.nodes.values():
             for url in node.neighbors:
                 if url != node.url and url in self.nodes:
@@ -18,13 +18,13 @@ class LinkGraph:
 
         for node in self.nodes.values():
             if node.indeg > 0 or node.outdeg > 0:
-                self.net.add_node(node.url, title=node.url, size=node.indeg, label=' ', physics=False)
+                self.net.add_node(node.url, title=node.url, size=node.indeg + 1, label=' ', physics=node_physics)
 
         for node in self.nodes.values():
             for url in node.neighbors:
                 if url != node.url:
                     try:
-                        self.net.add_edge(node.url, url, physics=False)
+                        self.net.add_edge(node.url, url, physics=edge_physics)
                     except:
                         pass
 
