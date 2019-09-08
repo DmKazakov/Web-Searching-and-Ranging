@@ -51,7 +51,7 @@ class DocumentStat:
 
 
 def string_size_in_bytes(s):
-    return len(s.encode('cp1251'))
+    return len(s.encode('cp1251', errors='replace'))
 
 
 def decode_base64_cp1251(s):
