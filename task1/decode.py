@@ -63,14 +63,12 @@ XML_FOLDER = "byweb_for_course"
 
 if __name__ == '__main__':
     docs_stat = []
-    documents = []
     mystem = Mystem()
     dictionary = Dictionary()
 
     for filename in os.listdir(XML_FOLDER):
         if filename.endswith(".xml"):
             docs = parse_xml(XML_FOLDER + os.sep + filename)
-            documents.extend(docs)
             for doc in docs:
                 docs_stat.append(doc.calc_doc_stats())
                 stemmed_words = [word.lower() for word in stem_words(doc.words, mystem) if word.isalnum()]
@@ -84,12 +82,12 @@ if __name__ == '__main__':
     # link stuff
 
     # print results
-    print("Total documents count: " + str(len(documents)))
-    print("Average document length: " + str(average_doc_size_in_words(documents)) + " words")
-    print("Average document length: " + str(average_doc_size_in_bytes(documents)) + " bytes")
-    print("Average text content to HTML content ratio: " + str(average_doc_text_to_html_ratio(documents)))
+    print("Total documents count: " + str(len(docs_stat)))
+    print("Average document length: " + str(average_doc_size_in_words(docs_stat)) + " words")
+    print("Average document length: " + str(average_doc_size_in_bytes(docs_stat)) + " bytes")
+    print("Average text content to HTML content ratio: " + str(average_doc_text_to_html_ratio(docs_stat)))
     # TODO distribution
     print("Words with largest collection frequency: " +
           str(most_popular_word({word: dictionary.dict[word].cnt for word in dictionary.dict})))
     print("Words with smallest inverse document frequency: " +
-          str(most_popular_word(inverse_document_frequency(dictionary.dict, documents), get_max=False)))
+          str(most_popular_word(inverse_document_frequency(dictionary.dict, docs_stat), get_max=False)))

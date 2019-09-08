@@ -14,7 +14,7 @@ class Document:
         content_urls = self.parse_html_to_links()
         text_bytes_size = string_size_in_bytes(self.text)
         html_bytes_size = string_size_in_bytes(self.content)
-        ratio = html_bytes_size / text_bytes_size
+        ratio = text_bytes_size / html_bytes_size
         return DocumentStat(self.doc_id, self.url, content_urls, len(self.words), html_bytes_size, ratio)
 
     def parse_html_to_text(self):
