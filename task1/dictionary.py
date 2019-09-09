@@ -34,7 +34,7 @@ class Dictionary:
         for k, v in self.dict.items():
             t = v.cnt if in_collection else 1
             latin_words += t if all(ord(c) < 128 for c in k) else 0
-        return latin_words / self.words_cnt
+        return latin_words / self.words_cnt if in_collection else len(self.dict)
 
     def stop_words_proportion(self, in_collection=False):
         files = [f for f in os.listdir(STOP_WORDS_FOLDER) if os.path.isfile(os.path.join(STOP_WORDS_FOLDER, f))]
@@ -43,7 +43,7 @@ class Dictionary:
         for k, v in self.dict.items():
             t = v.cnt if in_collection else 1
             stop_words_count += t if k in stop_words else 0
-        return stop_words_count / self.words_cnt
+        return stop_words_count / self.words_cnt if in_collection else len(self.dict)
 
 
 class DictionaryEntry:
