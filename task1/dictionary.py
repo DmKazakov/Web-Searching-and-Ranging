@@ -1,6 +1,6 @@
 from collections import defaultdict
 import os
-import itertools
+import operator
 
 STOP_WORDS_FOLDER = "stopwords"
 
@@ -46,11 +46,12 @@ class Dictionary:
             stop_words_count += t if k in stop_words else 0
         return stop_words_count / (self.words_cnt if in_collection else len(self.dict))
 
-    def collection_words(self):
-        words = []
-        for word in self.dict.keys():
-            words.extend(list(itertools.repeat(word, self.dict[word].cnt)))
-        return words
+    def most_popular_word(self, fun, limit=5, get_max=True):
+        #sorted_dictionary = sorted(dictionary.items(), key=operator.itemgetter(1))
+        #dictionary_top = sorted_dictionary[-limit:] if get_max else sorted_dictionary[:limit]
+        #max_values = [entry[1] for entry in dictionary_top]
+        #return [(word, round(value, 2)) for (word, value) in sorted_dictionary if dictionary[word] in max_values]
+        return
 
 
 class DictionaryEntry:
