@@ -1,6 +1,6 @@
-from collections import defaultdict
 import os
-import operator
+import sys
+from collections import defaultdict
 
 STOP_WORDS_FOLDER = "stopwords"
 
@@ -47,11 +47,20 @@ class Dictionary:
         return stop_words_count / (self.words_cnt if in_collection else len(self.dict))
 
     def most_popular_word(self, fun, limit=5, get_max=True):
-        #sorted_dictionary = sorted(dictionary.items(), key=operator.itemgetter(1))
-        #dictionary_top = sorted_dictionary[-limit:] if get_max else sorted_dictionary[:limit]
-        #max_values = [entry[1] for entry in dictionary_top]
-        #return [(word, round(value, 2)) for (word, value) in sorted_dictionary if dictionary[word] in max_values]
-        return
+        def comparator(a, b):
+            return a > b if get_max else a < b
+
+        top_values_list = {-i if get_max else sys.maxsize - i: [] for i in range(limit)}
+        for word in self.dict:
+            if fun(word) in top_values_list:
+                top_values_list[fun(word)].append(word)
+            else:
+                for value in top_values_list:
+                    if comparator(fun(word), value):
+                        top_values_list.pop(value)
+                        top_values_list[fun(word)] = [word]
+                        break
+        return [(round(v, 3), lst) for (v, lst) in sorted(top_values_list.items())]
 
 
 class DictionaryEntry:
