@@ -1,5 +1,8 @@
 import base64
 from bs4 import BeautifulSoup, Comment
+from pymystem3 import Mystem
+
+mystem = Mystem()
 
 
 class Document:
@@ -8,14 +11,15 @@ class Document:
         self.url = url
         self.content = content
         self.text = self.parse_html_to_text()
-        self.words = list(filter(lambda s: any(ch.isalpha() for ch in s), self.text.split()))
+        stemmed_words = mystem.lemmatize(self.text)
+        self.words = [word for word in stemmed_words if word.isalnum()]
 
     def calc_doc_stats(self):
         content_urls = self.parse_html_to_links()
         text_bytes_size = string_size_in_bytes(self.text)
         html_bytes_size = string_size_in_bytes(self.content)
         ratio = text_bytes_size / html_bytes_size
-        return DocumentStat(self.doc_id, self.url, content_urls, len(self.words), html_bytes_size, ratio)
+        return DocumentStat(self.doc_id, self.url, content_urls, len(self.words), text_bytes_size, ratio)
 
     def parse_html_to_text(self):
         def decompose_comments(soup):

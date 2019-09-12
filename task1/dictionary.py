@@ -3,7 +3,8 @@ import sys
 from collections import defaultdict
 
 STOP_WORDS_FOLDER = "stopwords"
-
+files = [f for f in os.listdir(STOP_WORDS_FOLDER) if os.path.isfile(os.path.join(STOP_WORDS_FOLDER, f))]
+stop_words = [s.strip() for file in files for s in open(os.path.join(STOP_WORDS_FOLDER, file), "r").readlines()]
 
 class Dictionary:
     def __init__(self):
@@ -38,8 +39,6 @@ class Dictionary:
         return latin_words / (self.words_cnt if in_collection else len(self.dict))
 
     def stop_words_proportion(self, in_collection=False):
-        files = [f for f in os.listdir(STOP_WORDS_FOLDER) if os.path.isfile(os.path.join(STOP_WORDS_FOLDER, f))]
-        stop_words = [s.strip() for file in files for s in open(os.path.join(STOP_WORDS_FOLDER, file), "r").readlines()]
         stop_words_count = 0
         for k, v in self.dict.items():
             t = v.cnt if in_collection else 1
@@ -52,6 +51,8 @@ class Dictionary:
 
         top_values_list = {-i if get_max else sys.maxsize - i: [] for i in range(limit)}
         for word in self.dict:
+            if word in stop_words:
+                continue
             if fun(word) in top_values_list:
                 top_values_list[fun(word)].append(word)
             else:
