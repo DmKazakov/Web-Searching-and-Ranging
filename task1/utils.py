@@ -53,7 +53,7 @@ def plot_figure(data, title, x_axis_title, y_axis_title):
         xaxis=go.layout.XAxis(title=go.layout.xaxis.Title(text=x_axis_title)),
         yaxis=go.layout.YAxis(title=go.layout.yaxis.Title(text=y_axis_title))
     )
-    fig = go.Figure(data=data, layout=layout)
+    fig = go.Figure(data=[data], layout=layout)
     iplot(fig)
 
 
