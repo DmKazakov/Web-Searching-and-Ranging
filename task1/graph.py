@@ -24,7 +24,7 @@ class LinkGraph:
                     self.nodes[url].indeg += 1
 
         for node in self.nodes.values():
-            if node.indeg < self.min_indeg:
+            if node.indeg >= self.min_indeg:
                 size = node.indeg - self.min_indeg + 1
                 self.net.add_node(node.url, title=node.url, size=size, label=' ', physics=node_physics)
 
