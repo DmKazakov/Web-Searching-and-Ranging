@@ -1,6 +1,6 @@
-import base64
 from bs4 import BeautifulSoup, Comment
 from pymystem3 import Mystem
+
 
 mystem = Mystem()
 
@@ -56,7 +56,3 @@ class DocumentStat:
 
 def string_size_in_bytes(s):
     return len(s.encode('cp1251', errors='replace'))
-
-
-def decode_base64_cp1251(s):
-    return base64.b64decode(s).decode('cp1251')
