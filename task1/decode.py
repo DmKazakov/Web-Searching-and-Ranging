@@ -2,6 +2,7 @@ import math
 import operator
 import lxml.etree as et
 from statistics import mean
+from scipy.signal import savgol_filter
 
 import plotly.graph_objs as go
 
@@ -26,7 +27,7 @@ def rank_frequency(dictionary):
     return [(math.log10(i), math.log10(sorted_dictionary[i - 1][1])) for i in range(1, len(sorted_dictionary) + 1)]
 
 
-def parse_xml(filename):
+def parse_xml(filename, docs_stat):
     context = et.iterparse(filename, tag='document')
 
     for (_, elem) in context:
@@ -56,8 +57,11 @@ def plot_histogram(data, title, x_axis_title, y_axis_title, step):
 
 
 def plot_line(data, title, x_axis_title, y_axis_title):
-    line_graph = go.Scatter(x=[entry[0] for entry in data], y=[entry[1] for entry in data], mode='lines')
-    plot_figure(line_graph, title, x_axis_title, y_axis_title)
+    smooth_trace = {'type': 'scatter', 'mode': 'lines',
+                    'x': [entry[0] for entry in data],
+                    'y': savgol_filter([entry[1] for entry in data], 51, 3),
+                    'line': {'shape': 'spline', 'smoothing': 1.3}}
+    plot_figure(smooth_trace, title, x_axis_title, y_axis_title)
 
 
 def plot_figure(data, title, x_axis_title, y_axis_title):
@@ -81,7 +85,7 @@ dictionary = Dictionary()
 
 for filename in os.listdir(XML_FOLDER):
     if filename.endswith(".xml"):
-        parse_xml(XML_FOLDER + os.sep + filename)
+        parse_xml(XML_FOLDER + os.sep + filename, docs_stat)
         break
 
 print("Total documents count: " + str(len(docs_stat)))
