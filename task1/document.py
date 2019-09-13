@@ -1,4 +1,5 @@
-import base64
+import pybase64
+
 from bs4 import BeautifulSoup, Comment
 from pymystem3 import Mystem
 
@@ -10,18 +11,17 @@ class Document:
         self.doc_id = doc_id
         self.url = url
         self.content = content
-        self.text = self.parse_html_to_text()
+        self.parse_html()
         stemmed_words = mystem.lemmatize(self.text)
-        self.words = [word for word in stemmed_words if word.isalnum()]
+        self.words = [word for word in stemmed_words if word.isalpha()]
 
     def calc_doc_stats(self):
-        content_urls = self.parse_html_to_links()
         text_bytes_size = string_size_in_bytes(self.text)
         html_bytes_size = string_size_in_bytes(self.content)
         ratio = text_bytes_size / html_bytes_size
-        return DocumentStat(self.doc_id, self.url, content_urls, len(self.words), text_bytes_size, ratio)
+        return DocumentStat(self.doc_id, self.url, self.content_urls, len(self.words), text_bytes_size, ratio)
 
-    def parse_html_to_text(self):
+    def parse_html(self):
         def decompose_comments(soup):
             comments = soup.findAll(text=lambda text: isinstance(text, Comment))
             for comment in comments:
@@ -32,16 +32,14 @@ class Document:
             for script in soup(["script", "style"]):
                 script.decompose()
 
-        soup = BeautifulSoup(self.content, 'html.parser')
+        soup = BeautifulSoup(self.content, 'lxml')
         decompose_js(soup)
         soup = decompose_comments(soup)
-        soup = BeautifulSoup(soup.get_text(separator=" "), 'html.parser')
+        soup = BeautifulSoup(soup.get_text(separator=" "), 'lxml')
         soup = decompose_comments(soup)
-        return soup.get_text(separator=" ")
 
-    def parse_html_to_links(self):
-        soup = BeautifulSoup(self.content, 'html.parser')
-        return [link.get('href') for link in soup.find_all('a')]
+        self.text = soup.get_text(separator=" ")
+        self.content_urls = [link.get('href') for link in soup.find_all('a')]
 
 
 class DocumentStat:
@@ -59,4 +57,4 @@ def string_size_in_bytes(s):
 
 
 def decode_base64_cp1251(s):
-    return base64.b64decode(s).decode('cp1251')
+    return pybase64.urlsafe_b64decode(s).decode('cp1251')
