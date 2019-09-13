@@ -115,5 +115,5 @@ print("Words with smallest inverse document frequency: " +
       str(dictionary.most_popular_word(lambda v: math.log10(len(docs_stat) / dictionary.dict[v].doc_cnt),
                                        get_max=False)))
 
-rf = rank_frequency({word: dictionary.dict[word].cnt for word in dictionary.dict})
+rf = rank_frequency({word: value.cnt for word, value in dictionary.dict.items()})
 plot_line(rf, "Rank-frequency", "rank", "frequency")
