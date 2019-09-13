@@ -6,6 +6,7 @@ STOP_WORDS_FOLDER = "stopwords"
 files = [f for f in os.listdir(STOP_WORDS_FOLDER) if os.path.isfile(os.path.join(STOP_WORDS_FOLDER, f))]
 stop_words = [s.strip() for file in files for s in open(os.path.join(STOP_WORDS_FOLDER, file), "r").readlines()]
 
+
 class Dictionary:
     def __init__(self):
         self.dict = defaultdict(lambda: DictionaryEntry())
