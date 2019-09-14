@@ -3,7 +3,7 @@ import pybase64
 from bs4 import BeautifulSoup, Comment
 from pymystem3 import Mystem
 
-mystem = Mystem()
+mystem = Mystem(disambiguation=False)
 
 
 class Document:
