@@ -13,7 +13,7 @@ class Document:
         self.content = content
         self.parse_html()
         stemmed_words = mystem.lemmatize(self.text)
-        self.words = [word for word in stemmed_words if word.isalpha()]
+        self.words = [word for word in stemmed_words if word.isalnum()]
 
     def calc_doc_stats(self):
         text_bytes_size = string_size_in_bytes(self.text)
@@ -33,13 +33,15 @@ class Document:
                 script.decompose()
 
         soup = BeautifulSoup(self.content, 'lxml')
+
+        self.content_urls = [link.get('href') for link in soup.find_all('a')]
+
         decompose_js(soup)
         soup = decompose_comments(soup)
         soup = BeautifulSoup(soup.get_text(separator=" "), 'lxml')
         soup = decompose_comments(soup)
 
         self.text = soup.get_text(separator=" ")
-        self.content_urls = [link.get('href') for link in soup.find_all('a')]
 
 
 class DocumentStat:

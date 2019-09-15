@@ -46,7 +46,7 @@ class Dictionary:
             stop_words_count += t if k in stop_words else 0
         return stop_words_count / (self.words_cnt if in_collection else len(self.dict))
 
-    def most_popular_word(self, fun, limit=5, get_max=True):
+    def most_popular_word(self, fun, limit=15, get_max=True):
         def comparator(a, b):
             return a > b if get_max else a < b
 
