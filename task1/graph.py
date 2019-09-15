@@ -3,7 +3,7 @@ from urllib.parse import urlparse, urljoin
 
 
 class LinkGraph:
-    def __init__(self, min_indeg=0):
+    def __init__(self, min_indeg=70):
         self.net = Network(notebook=True, directed=True)
         self.nodes = {}
         self.min_indeg = min_indeg
