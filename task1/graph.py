@@ -4,7 +4,7 @@ import math
 
 
 class LinkGraph:
-    def __init__(self, min_indeg=100):
+    def __init__(self, min_indeg=300):
         self.net = Network(notebook=True, directed=True)
         self.nodes = {}
         self.min_indeg = min_indeg
@@ -17,7 +17,7 @@ class LinkGraph:
         except:
             return
 
-    def show(self, node_physics=False, edge_physics=False):
+    def show(self, node_physics=True, edge_physics=True):
         for node in self.nodes.values():
             for url in node.neighbors:
                 if url != node.url and url in self.nodes:
@@ -26,7 +26,7 @@ class LinkGraph:
 
         for node in self.nodes.values():
             if node.indeg >= self.min_indeg:
-                size = math.ceil((node.indeg - self.min_indeg + 1) / 30)
+                size = math.ceil((node.indeg - self.min_indeg + 1) / 150) + 5
                 self.net.add_node(node.url, title=node.url, size=size, label=' ', physics=node_physics)
 
         for node in self.nodes.values():
