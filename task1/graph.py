@@ -1,9 +1,10 @@
 from pyvis.network import Network
 from urllib.parse import urlparse, urljoin
+import math
 
 
 class LinkGraph:
-    def __init__(self, min_indeg=70):
+    def __init__(self, min_indeg=100):
         self.net = Network(notebook=True, directed=True)
         self.nodes = {}
         self.min_indeg = min_indeg
@@ -25,7 +26,7 @@ class LinkGraph:
 
         for node in self.nodes.values():
             if node.indeg >= self.min_indeg:
-                size = (node.indeg - self.min_indeg + 1) // 10
+                size = math.ceil((node.indeg - self.min_indeg + 1) / 30)
                 self.net.add_node(node.url, title=node.url, size=size, label=' ', physics=node_physics)
 
         for node in self.nodes.values():
