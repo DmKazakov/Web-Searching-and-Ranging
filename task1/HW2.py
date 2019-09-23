@@ -1,33 +1,110 @@
 import lxml.etree as et
+import os
+from elasticsearch import Elasticsearch
+from elasticsearch.helpers import parallel_bulk
 
-from task1.dictionary import *
 from task1.document import *
 from task1.graph import *
 
 
-def parse_xml(filename):
-    context = et.iterparse(filename, tag='document')
+INDEX = "ind"
 
-    for (_, elem) in context:
-        content = elem[0].text
-        url = elem[1].text
-        doc_id = int(elem[2].text)
-        elem.clear()
-
-        try:
-            doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
-            stats = doc.calc_doc_stats()
-            docs_stats.append(stats)
-            graph.add_document(stats)
-        except:
-            print("Unable to parse " + str(doc_id))
+def create_action(doc):
+    return {
+        '_index': INDEX,
+        '_id': doc.doc_id,
+        '_source': doc.to_json()
+    }
 
 
-XML_FOLDER = "byweb_for_course"
+def action_generator():
+    XML_FOLDER = "byweb_for_course"
+    for filename in os.listdir(XML_FOLDER):
+        if filename.endswith(".xml"):
+            name = XML_FOLDER + os.sep + filename
+            context = et.iterparse(name, tag='document')
+
+            for (_, elem) in context:
+                content = elem[0].text
+                url = elem[1].text
+                doc_id = int(elem[2].text)
+                elem.clear()
+
+                try:
+                    doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
+                    graph.add_document(doc)
+                    yield create_action(doc)
+                except:
+                    print("Unable to parse " + str(doc_id))
+
+
+SETTINGS = {
+    'mappings': {
+        'properties': {
+            'content': {
+                'type': 'text',
+                'analyzer': 'russian_plain'
+            },
+            'stemmed': {
+                'type': 'text',
+                'analyzer': 'russian_stemmed'
+            },
+            'titles': {
+                'type': 'text',
+                'analyzer': 'russian_plain'
+            },
+            'pagerank': {
+                'type': 'rank_feature'
+            }
+        }
+    },
+    'settings': {
+        'analysis': {
+            'analyzer': {
+                'russian_plain': {
+                    'char_filter': ['yo'],
+                    'tokenizer': 'alphanum',
+                    'filter': ['lowercase']
+                },
+                'russian_stemmed': {
+                    'char_filter': ['yo'],
+                    'tokenizer': 'whitespace',
+                    'filter': ['lowercase']
+                }
+            },
+            'char_filter': {
+                'yo': {
+                    'type': 'mapping',
+                    'mappings': ['ё => е']
+                }
+            },
+            'tokenizer': {
+                'alphanum': {
+                    'type': 'char_group',
+                    'tokenize_on_chars': ["whitespace", "punctuation", "symbol", "\n"]
+                }
+            }
+        }
+    }
+}
+
+
+def recreate_index():
+    try:
+        es.indices.delete(index=INDEX)
+    except:
+        pass
+    es.indices.create(index=INDEX, body=SETTINGS)
+
 
 graph = LinkGraph()
-docs_stats = []
+es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
+recreate_index()
 
-for filename in os.listdir(XML_FOLDER):
-    if filename.endswith(".xml"):
-        parse_xml(XML_FOLDER + os.sep + filename)
+for ok, result in parallel_bulk(es, action_generator(), queue_size=4, thread_count=4, chunk_size=1000):
+    if not ok:
+        print(result)
+
+for id, pr in graph.pagerank().items():
+    # TODO: doc_type?
+    es.update(index=INDEX, id=id, body={'doc': {'pagerank': pr}})
