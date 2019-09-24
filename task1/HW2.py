@@ -10,6 +10,7 @@ from task1.graph import *
 
 INDEX = "ind"
 
+
 def create_action(doc):
     return {
         '_index': INDEX,
