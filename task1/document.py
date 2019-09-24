@@ -43,7 +43,7 @@ class Document:
             "content": self.text,
             "stemmed": self.words,
             "titles": self.titles,
-            "pagerank": 0
+            "pagerank": 1
         }
         return json.dumps(obj)
 

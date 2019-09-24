@@ -27,11 +27,20 @@ def action_generator():
             name = XML_FOLDER + os.sep + filename
             context = et.iterparse(name, tag='document')
 
+            # TODO this is for debug, remove in the final version
+            # limit = 50
+            # i = 0
+
             for (_, elem) in context:
                 content = elem[0].text
                 url = elem[1].text
                 doc_id = int(elem[2].text)
                 elem.clear()
+
+                # TODO this is for debug, remove in the final version
+                # if i == limit:
+                #    break
+                # i += 1
 
                 try:
                     doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
@@ -39,6 +48,7 @@ def action_generator():
                     yield create_action(doc)
                 except:
                     print("Unable to parse " + str(doc_id))
+        break
 
 
 SETTINGS = {
@@ -91,7 +101,6 @@ SETTINGS = {
     }
 }
 
-
 def recreate_index():
     try:
         es.indices.delete(index=INDEX)
@@ -109,6 +118,7 @@ for ok, result in parallel_bulk(es, action_generator(), queue_size=4, thread_cou
     if not ok:
         print(result)
 print("Indexing time: ", time.time() - start_indexing)
+print("Index size in bytes: ", es.indices.stats()['_all']['primaries']['store']['size_in_bytes'])
 
 for id, pr in graph.pagerank().items():
     # TODO: doc_type?
@@ -133,3 +143,5 @@ for element in root.iterfind('task', namespaces=root.nsmap):
         if relevance == 'vital':
             queries[id].relevant.append(doc_id)
     element.clear()
+
+
