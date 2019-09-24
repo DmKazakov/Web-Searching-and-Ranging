@@ -6,6 +6,7 @@ from elasticsearch.helpers import parallel_bulk
 
 from task1.document import *
 from task1.graph import *
+from task1.query import *
 
 
 INDEX = "ind"
@@ -112,3 +113,23 @@ print("Indexing time: ", time.time() - start_indexing)
 for id, pr in graph.pagerank().items():
     # TODO: doc_type?
     es.update(index=INDEX, id=id, body={'doc': {'pagerank': pr}})
+
+QUERIES_FILE = "web2008_adhoc.xml"
+RELEVANCE_FILE = "or_relevant-minus_table.xml"
+queries = {}
+root = et.parse(QUERIES_FILE).getroot()
+for element in root.iterfind('task', namespaces=root.nsmap):
+    text = element[0].text
+    id = element.attrib.get('id')
+    element.clear()
+    queries[id] = Query(id, text)
+root = et.parse(RELEVANCE_FILE).getroot()
+for element in root.iterfind('task', namespaces=root.nsmap):
+    id = element.attrib.get('id')
+    for document in element.iterfind('document', namespaces=root.nsmap):
+        doc_id = document.attrib.get('id')
+        relevance = document.attrib.get('relevance')
+        document.clear()
+        if relevance == 'vital':
+            queries[id].relevant.append(doc_id)
+    element.clear()
