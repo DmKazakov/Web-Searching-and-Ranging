@@ -1,5 +1,6 @@
 import lxml.etree as et
 import os
+import time
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
 
@@ -101,9 +102,11 @@ graph = LinkGraph()
 es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
 recreate_index()
 
+start_indexing = time.time()
 for ok, result in parallel_bulk(es, action_generator(), queue_size=4, thread_count=4, chunk_size=1000):
     if not ok:
         print(result)
+print("Indexing time: ", time.time() - start_indexing)
 
 for id, pr in graph.pagerank().items():
     # TODO: doc_type?

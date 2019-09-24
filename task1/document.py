@@ -1,4 +1,5 @@
 import pybase64
+import json
 
 from bs4 import BeautifulSoup, Comment
 from pymystem3 import Mystem
@@ -36,6 +37,15 @@ class Document:
         soup = decompose_comments(soup)
 
         self.text = soup.get_text(separator=" ")
+
+    def to_json(self):
+        obj = {
+            "content": self.text,
+            "stemmed": self.words,
+            "titles": self.titles,
+            "pagerank": 0
+        }
+        return json.dumps(obj)
 
 
 def decode_base64_cp1251(s):
