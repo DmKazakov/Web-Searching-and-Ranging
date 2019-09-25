@@ -8,7 +8,6 @@ from task1.document import *
 from task1.graph import *
 from task1.query import *
 
-
 INDEX = "ind"
 
 
@@ -23,13 +22,13 @@ def create_action(doc):
 def action_generator():
     XML_FOLDER = "byweb_for_course"
     for filename in os.listdir(XML_FOLDER):
-        if filename.endswith(".xml"):
+        if filename.endswith(".0.xml"):
             name = XML_FOLDER + os.sep + filename
             context = et.iterparse(name, tag='document')
 
             # TODO this is for debug, remove in the final version
-            # limit = 50
-            # i = 0
+            limit = 500
+            i = 0
 
             for (_, elem) in context:
                 content = elem[0].text
@@ -38,9 +37,9 @@ def action_generator():
                 elem.clear()
 
                 # TODO this is for debug, remove in the final version
-                # if i == limit:
-                #    break
-                # i += 1
+                if i == limit:
+                    break
+                i += 1
 
                 try:
                     doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
@@ -48,7 +47,7 @@ def action_generator():
                     yield create_action(doc)
                 except:
                     print("Unable to parse " + str(doc_id))
-        break
+            break
 
 
 SETTINGS = {
@@ -101,12 +100,61 @@ SETTINGS = {
     }
 }
 
+
 def recreate_index():
     try:
         es.indices.delete(index=INDEX)
     except:
         pass
     es.indices.create(index=INDEX, body=SETTINGS)
+
+
+# TODO output/return BM25 score
+def search_query(query_text, query_result_size=20):
+    query = {
+        'query': {
+            'bool': {
+                'should': {
+                    'match': {
+                        'content': query_text
+                    }
+                }
+
+            }
+        }
+    }
+    query_result = es.search(index=INDEX, body=query, size=query_result_size)
+    return list(map(lambda x: x['_id'], query_result['hits']['hits']))
+
+
+def search_stemmed_query(query_text, query_result_size=20):
+    # TODO stem query
+    query = {
+        'query': {
+            'bool': {
+                'should': {
+                    'match': {
+                        'stemmed': query_text
+                    }
+                }
+
+            }
+        }
+    }
+    query_result = es.search(index=INDEX, body=query, size=query_result_size)
+    return list(map(lambda x: x['_id'], query_result['hits']['hits']))
+
+
+def precision_recall(expected, actual, k=20):
+    actual = set(actual[:k])
+    actual_rprecision = actual[:len(expected)]
+    intersection_size = len(actual.intersection(expected))
+    intersection_size_rprecision = len(actual_rprecision.intersection(expected))
+
+    precision = intersection_size / k
+    rprecision = (intersection_size_rprecision / len(expected)) if len(expected) > 0 else 0
+    recall = (intersection_size / len(expected)) if len(expected) > 0 else 0
+    return precision, recall, rprecision
 
 
 graph = LinkGraph()
@@ -144,4 +192,19 @@ for element in root.iterfind('task', namespaces=root.nsmap):
             queries[id].relevant.append(doc_id)
     element.clear()
 
+# TODO refactor into a separate function with search function as an argument
+total_precision = 0
+total_recall = 0
+total_rprecision = 0
+for query_id in queries:
+    query_result = search_query(queries[query_id].text)
+    precision, recall, rprecision = precision_recall(queries[query_id].relevant, query_result)
+    total_precision += precision
+    total_recall += recall
+    total_rprecision += rprecision
 
+print("Average precision, k = 20: ", total_precision / len(queries))
+print("Average recall, k = 20: ", total_recall / len(queries))
+print("Average R-precision: ", total_rprecision / len(queries))
+#  TODO
+print("Mean Avearage Precision : ")
