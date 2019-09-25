@@ -27,11 +27,16 @@ def action_generator():
             name = XML_FOLDER + os.sep + filename
             context = et.iterparse(name, tag='document')
 
+            i = 0
             for (_, elem) in context:
                 content = elem[0].text
                 url = elem[1].text
                 doc_id = int(elem[2].text)
                 elem.clear()
+
+                i += 1
+                if i == 100:
+                    break
 
                 try:
                     doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
@@ -39,6 +44,7 @@ def action_generator():
                     yield create_action(doc)
                 except:
                     print("Unable to parse " + str(doc_id))
+        break
 
 
 SETTINGS = {
@@ -161,6 +167,33 @@ def search_static_and_dynamic_features_query(query_text, query_result_size=20):
     return list(map(lambda x: (x['_id'], x['_score']), query_result['hits']['hits']))
 
 
+def search_query_with_titles(query_text, query_result_size=20):
+    query = {
+        'query': {
+            'bool': {
+                'should': [
+                    {
+                        'match': {
+                            'content': query_text
+                        }
+                    },
+                    {
+                        'match': {
+                            'titles': {
+                                'query': query_text,
+                                'boost': '5.0'
+                            }
+                        }
+                    }
+                ]
+
+            }
+        }
+    }
+    query_result = es.search(index=INDEX, body=query, size=query_result_size)
+    return list(map(lambda x: (x['_id'], x['_score']), query_result['hits']['hits']))
+
+
 def precision_recall(expected, actual_data, k=20):
     actual = set(actual_data[:k])
     actual_rprecision = set(actual_data[:len(expected)])
@@ -199,7 +232,7 @@ def search_statistics(search_function, queries):
         total_rprecision += rprecision
         total_average_precision += average_precision(queries[query_id].relevant, doc_ids)
     return total_precision / len(queries), total_recall / len(queries), total_rprecision / len(queries), \
-        total_average_precision / len(queries)
+           total_average_precision / len(queries)
 
 
 graph = LinkGraph()
@@ -253,8 +286,20 @@ print("Average R-precision for lemmatized text: ", lemmatized_text_statistics[2]
 print("Mean Average Precision for lemmatized text: ", lemmatized_text_statistics[3])
 print("Queries execution time for lemmatized text: ", time.time() - start_queries_lemmatized)
 
+start_queries_pagerank = time.time()
 pagerank_statistics = search_statistics(search_static_and_dynamic_features_query, queries)
 print("Average precision for plain text with pagerank, k = 20: ", pagerank_statistics[0])
 print("Average recall for plain text with pagerank, k = 20: ", pagerank_statistics[1])
 print("Average R-precision for plain text with pagerank: ", pagerank_statistics[2])
 print("Mean Average Precision for plain text with pagerank: ", pagerank_statistics[3])
+print("Queries execution time for plain text with pagerank: ", time.time() - start_queries_pagerank)
+
+start_queries_with_titles = time.time()
+titles_statistics = search_statistics(search_query_with_titles, queries)
+print("Average precision for plain text with titles, k = 20: ", titles_statistics[0])
+print("Average recall for plain text with titles, k = 20: ", titles_statistics[1])
+print("Average R-precision for plain text with titles: ", titles_statistics[2])
+print("Mean Average Precision for plain text with titles: ", titles_statistics[3])
+print("Queries execution time for plain text with titles: ", time.time() - start_queries_with_titles)
+
+
