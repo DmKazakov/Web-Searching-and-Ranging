@@ -23,13 +23,9 @@ def create_action(doc):
 def action_generator():
     XML_FOLDER = "byweb_for_course"
     for filename in os.listdir(XML_FOLDER):
-        if filename.endswith(".0.xml"):
+        if filename.endswith(".xml"):
             name = XML_FOLDER + os.sep + filename
             context = et.iterparse(name, tag='document')
-
-            # TODO this is for debug, remove in the final version
-            limit = 50
-            i = 0
 
             for (_, elem) in context:
                 content = elem[0].text
@@ -37,18 +33,12 @@ def action_generator():
                 doc_id = int(elem[2].text)
                 elem.clear()
 
-                # TODO this is for debug, remove in the final version
-                if i == limit:
-                    break
-                i += 1
-
                 try:
                     doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
                     graph.add_document(doc)
                     yield create_action(doc)
                 except:
                     print("Unable to parse " + str(doc_id))
-            break
 
 
 SETTINGS = {
@@ -145,6 +135,32 @@ def search_stemmed_query(query_text, query_result_size=20):
     return list(map(lambda x: (x['_id'], x['_score']), query_result['hits']['hits']))
 
 
+def search_static_and_dynamic_features_query(query_text, query_result_size=20):
+    query = {
+        'query': {
+            'bool': {
+                'should': [
+                    {
+                        'match': {
+                            'text': query_text
+                        }
+                    },
+                    {
+                        'rank_feature': {
+                            'field': 'pagerank',
+                            'saturation': {
+                                'pivot': 10
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    query_result = es.search(index=INDEX, body=query, size=query_result_size)
+    return list(map(lambda x: (x['_id'], x['_score']), query_result['hits']['hits']))
+
+
 def precision_recall(expected, actual_data, k=20):
     actual = set(actual_data[:k])
     actual_rprecision = set(actual_data[:len(expected)])
@@ -230,9 +246,15 @@ print("Mean Average Precision for plain text: ", plain_text_statistics[3])
 print("Queries execution time for plain text: ", time.time() - start_queries_plain_text)
 
 start_queries_lemmatized = time.time()
-lemmatized_text_statistics = search_statistics(search_query, queries)
-print("Average precision for lemmatized text, k = 20: ", plain_text_statistics[0])
-print("Average recall for lemmatized text, k = 20: ", plain_text_statistics[1])
-print("Average R-precision for lemmatized text: ", plain_text_statistics[2])
-print("Mean Average Precision for lemmatized text: ", plain_text_statistics[3])
+lemmatized_text_statistics = search_statistics(search_stemmed_query, queries)
+print("Average precision for lemmatized text, k = 20: ", lemmatized_text_statistics[0])
+print("Average recall for lemmatized text, k = 20: ", lemmatized_text_statistics[1])
+print("Average R-precision for lemmatized text: ", lemmatized_text_statistics[2])
+print("Mean Average Precision for lemmatized text: ", lemmatized_text_statistics[3])
 print("Queries execution time for lemmatized text: ", time.time() - start_queries_lemmatized)
+
+pagerank_statistics = search_statistics(search_static_and_dynamic_features_query, queries)
+print("Average precision for plain text with pagerank, k = 20: ", pagerank_statistics[0])
+print("Average recall for plain text with pagerank, k = 20: ", pagerank_statistics[1])
+print("Average R-precision for plain text with pagerank: ", pagerank_statistics[2])
+print("Mean Average Precision for plain text with pagerank: ", pagerank_statistics[3])
