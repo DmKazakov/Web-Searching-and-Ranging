@@ -1,6 +1,7 @@
-import lxml.etree as et
 import os
 import time
+
+import lxml.etree as et
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
 
@@ -27,7 +28,7 @@ def action_generator():
             context = et.iterparse(name, tag='document')
 
             # TODO this is for debug, remove in the final version
-            limit = 500
+            limit = 50
             i = 0
 
             for (_, elem) in context:
@@ -109,7 +110,6 @@ def recreate_index():
     es.indices.create(index=INDEX, body=SETTINGS)
 
 
-# TODO output/return BM25 score
 def search_query(query_text, query_result_size=20):
     query = {
         'query': {
@@ -124,17 +124,17 @@ def search_query(query_text, query_result_size=20):
         }
     }
     query_result = es.search(index=INDEX, body=query, size=query_result_size)
-    return list(map(lambda x: x['_id'], query_result['hits']['hits']))
+    return list(map(lambda x: (x['_id'], x['_score']), query_result['hits']['hits']))
 
 
 def search_stemmed_query(query_text, query_result_size=20):
-    # TODO stem query
+    lemmatized_query = mystem.lemmatize(query_text)
     query = {
         'query': {
             'bool': {
                 'should': {
                     'match': {
-                        'stemmed': query_text
+                        'stemmed': " ".join(lemmatized_query)
                     }
                 }
 
@@ -142,12 +142,12 @@ def search_stemmed_query(query_text, query_result_size=20):
         }
     }
     query_result = es.search(index=INDEX, body=query, size=query_result_size)
-    return list(map(lambda x: x['_id'], query_result['hits']['hits']))
+    return list(map(lambda x: (x['_id'], x['_score']), query_result['hits']['hits']))
 
 
-def precision_recall(expected, actual, k=20):
-    actual = set(actual[:k])
-    actual_rprecision = actual[:len(expected)]
+def precision_recall(expected, actual_data, k=20):
+    actual = set(actual_data[:k])
+    actual_rprecision = set(actual_data[:len(expected)])
     intersection_size = len(actual.intersection(expected))
     intersection_size_rprecision = len(actual_rprecision.intersection(expected))
 
@@ -155,6 +155,35 @@ def precision_recall(expected, actual, k=20):
     rprecision = (intersection_size_rprecision / len(expected)) if len(expected) > 0 else 0
     recall = (intersection_size / len(expected)) if len(expected) > 0 else 0
     return precision, recall, rprecision
+
+
+def average_precision(expected, actual, k=20):
+    k = min(k, len(actual))
+    s = 0
+    n = 0
+    for i in range(k):
+        if actual[i] in expected:
+            s += precision_recall(expected, actual, i + 1)[0]
+            n += 1
+    return 0 if n == 0 else s / n
+
+
+def search_statistics(search_function, queries):
+    total_precision = 0
+    total_recall = 0
+    total_rprecision = 0
+    total_average_precision = 0
+    for query_id in queries:
+        query_result = search_function(queries[query_id].text)
+        doc_ids = [doc_id for (doc_id, _) in query_result]
+        precision, recall, rprecision = precision_recall(queries[query_id].relevant,
+                                                         doc_ids)
+        total_precision += precision
+        total_recall += recall
+        total_rprecision += rprecision
+        total_average_precision += average_precision(queries[query_id].relevant, doc_ids)
+    return total_precision / len(queries), total_recall / len(queries), total_rprecision / len(queries), \
+        total_average_precision / len(queries)
 
 
 graph = LinkGraph()
@@ -192,19 +221,18 @@ for element in root.iterfind('task', namespaces=root.nsmap):
             queries[id].relevant.append(doc_id)
     element.clear()
 
-# TODO refactor into a separate function with search function as an argument
-total_precision = 0
-total_recall = 0
-total_rprecision = 0
-for query_id in queries:
-    query_result = search_query(queries[query_id].text)
-    precision, recall, rprecision = precision_recall(queries[query_id].relevant, query_result)
-    total_precision += precision
-    total_recall += recall
-    total_rprecision += rprecision
+start_queries_plain_text = time.time()
+plain_text_statistics = search_statistics(search_query, queries)
+print("Average precision for plain text, k = 20: ", plain_text_statistics[0])
+print("Average recall for plain text, k = 20: ", plain_text_statistics[1])
+print("Average R-precision for plain text: ", plain_text_statistics[2])
+print("Mean Average Precision for plain text: ", plain_text_statistics[3])
+print("Queries execution time for plain text: ", time.time() - start_queries_plain_text)
 
-print("Average precision, k = 20: ", total_precision / len(queries))
-print("Average recall, k = 20: ", total_recall / len(queries))
-print("Average R-precision: ", total_rprecision / len(queries))
-#  TODO
-print("Mean Avearage Precision : ")
+start_queries_lemmatized = time.time()
+lemmatized_text_statistics = search_statistics(search_query, queries)
+print("Average precision for lemmatized text, k = 20: ", plain_text_statistics[0])
+print("Average recall for lemmatized text, k = 20: ", plain_text_statistics[1])
+print("Average R-precision for lemmatized text: ", plain_text_statistics[2])
+print("Mean Average Precision for lemmatized text: ", plain_text_statistics[3])
+print("Queries execution time for lemmatized text: ", time.time() - start_queries_lemmatized)
