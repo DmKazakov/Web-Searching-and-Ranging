@@ -12,39 +12,22 @@ from task1.query import *
 INDEX = "ind"
 
 
-def create_action(doc):
+def create_action(doc_id, doc_json):
     return {
         '_index': INDEX,
-        '_id': doc.doc_id,
-        '_source': doc.to_json()
+        '_id': doc_id,
+        '_source': doc_json
     }
 
 
 def action_generator():
-    XML_FOLDER = "byweb_for_course"
-    for filename in os.listdir(XML_FOLDER):
-        if filename.endswith(".xml"):
-            name = XML_FOLDER + os.sep + filename
-            context = et.iterparse(name, tag='document')
+    DOCS_FOLDER = "documents"
+    for filename in os.listdir(DOCS_FOLDER):
+        name = DOCS_FOLDER + os.sep + filename
+        doc_file = open(name, "r")
+        doc_json = doc_file.read()
+        yield create_action(filename.strip(".txt"), doc_json)
 
-            i = 0
-            for (_, elem) in context:
-                content = elem[0].text
-                url = elem[1].text
-                doc_id = int(elem[2].text)
-                elem.clear()
-
-                i += 1
-                if i == 100:
-                    break
-
-                try:
-                    doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
-                    graph.add_document(doc)
-                    yield create_action(doc)
-                except:
-                    print("Unable to parse " + str(doc_id))
-        break
 
 
 SETTINGS = {
@@ -96,7 +79,6 @@ SETTINGS = {
         }
     }
 }
-
 
 def recreate_index():
     try:
@@ -235,9 +217,11 @@ def search_statistics(search_function, queries):
            total_average_precision / len(queries)
 
 
+INTERESTING = 0
 graph = LinkGraph()
 es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
 recreate_index()
+
 
 start_indexing = time.time()
 for ok, result in parallel_bulk(es, action_generator(), queue_size=1, thread_count=1, chunk_size=1):
@@ -246,9 +230,12 @@ for ok, result in parallel_bulk(es, action_generator(), queue_size=1, thread_cou
 print("Indexing time: ", time.time() - start_indexing)
 print("Index size in bytes: ", es.indices.stats()['_all']['primaries']['store']['size_in_bytes'])
 
+"""
 for id, pr in graph.pagerank().items():
-    es.update(index=INDEX, id=id, body={'doc': {'pagerank': pr}})
-
+    f = open(f"pageranks.txt", "w+")
+    f.write(str(id) + ":" + str(pr) + str("\n"))
+    # es.update(index=INDEX, id=id, body={'doc': {'pagerank': pr}})
+"""
 QUERIES_FILE = "web2008_adhoc.xml"
 RELEVANCE_FILE = "or_relevant-minus_table.xml"
 queries = {}
@@ -300,5 +287,4 @@ print("Average recall for plain text with titles, k = 20: ", titles_statistics[1
 print("Average R-precision for plain text with titles: ", titles_statistics[2])
 print("Mean Average Precision for plain text with titles: ", titles_statistics[3])
 print("Queries execution time for plain text with titles: ", time.time() - start_queries_with_titles)
-
-
+"""
