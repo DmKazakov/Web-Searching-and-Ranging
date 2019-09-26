@@ -1,12 +1,12 @@
 import os
 import time
+import zipfile
 
 import lxml.etree as et
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
 
 from task1.document import *
-from task1.graph import *
 from task1.query import *
 
 INDEX = "ind"
@@ -24,10 +24,14 @@ def action_generator():
     DOCS_FOLDER = "documents"
     for filename in os.listdir(DOCS_FOLDER):
         name = DOCS_FOLDER + os.sep + filename
-        doc_file = open(name, "r")
-        doc_json = doc_file.read()
-        yield create_action(filename.strip(".txt"), doc_json)
-
+        zip_file = zipfile.ZipFile(name, 'r')
+        for filename in zip_file.filelist:
+            try:
+                doc_json = zip_file.read(filename).decode(encoding='unicode_escape')
+                yield create_action(filename.orig_filename.strip(".txt"), doc_json)
+            except:
+                print(filename.orig_filename)
+                return
 
 
 SETTINGS = {
@@ -79,6 +83,7 @@ SETTINGS = {
         }
     }
 }
+
 
 def recreate_index():
     try:
@@ -204,6 +209,7 @@ def search_statistics(search_function, queries):
     total_recall = 0
     total_rprecision = 0
     total_average_precision = 0
+    i = 0
     for query_id in queries:
         query_result = search_function(queries[query_id].text)
         doc_ids = [doc_id for (doc_id, _) in query_result]
@@ -213,15 +219,15 @@ def search_statistics(search_function, queries):
         total_recall += recall
         total_rprecision += rprecision
         total_average_precision += average_precision(queries[query_id].relevant, doc_ids)
+        i += 1
+        if i % 100 == 0:
+            print("still searching, now at i = ", i)
     return total_precision / len(queries), total_recall / len(queries), total_rprecision / len(queries), \
            total_average_precision / len(queries)
 
 
-INTERESTING = 0
-graph = LinkGraph()
 es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
 recreate_index()
-
 
 start_indexing = time.time()
 for ok, result in parallel_bulk(es, action_generator(), queue_size=1, thread_count=1, chunk_size=1):
@@ -230,12 +236,13 @@ for ok, result in parallel_bulk(es, action_generator(), queue_size=1, thread_cou
 print("Indexing time: ", time.time() - start_indexing)
 print("Index size in bytes: ", es.indices.stats()['_all']['primaries']['store']['size_in_bytes'])
 
-"""
-for id, pr in graph.pagerank().items():
-    f = open(f"pageranks.txt", "w+")
-    f.write(str(id) + ":" + str(pr) + str("\n"))
-    # es.update(index=INDEX, id=id, body={'doc': {'pagerank': pr}})
-"""
+pagerank_file = open("pageranks.txt", "r")
+line = pagerank_file.readline()
+while line:
+    doc_id, pr = line.strip().split(":")
+    es.update(index=INDEX, id=doc_id, body={'doc': {'pagerank': pr}})
+    line = pagerank_file.readline()
+
 QUERIES_FILE = "web2008_adhoc.xml"
 RELEVANCE_FILE = "or_relevant-minus_table.xml"
 queries = {}
@@ -264,6 +271,7 @@ print("Average R-precision for plain text: ", plain_text_statistics[2])
 print("Mean Average Precision for plain text: ", plain_text_statistics[3])
 print("Queries execution time for plain text: ", time.time() - start_queries_plain_text)
 
+
 start_queries_lemmatized = time.time()
 lemmatized_text_statistics = search_statistics(search_stemmed_query, queries)
 print("Average precision for lemmatized text, k = 20: ", lemmatized_text_statistics[0])
@@ -287,4 +295,3 @@ print("Average recall for plain text with titles, k = 20: ", titles_statistics[1
 print("Average R-precision for plain text with titles: ", titles_statistics[2])
 print("Mean Average Precision for plain text with titles: ", titles_statistics[3])
 print("Queries execution time for plain text with titles: ", time.time() - start_queries_with_titles)
-"""

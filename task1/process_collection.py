@@ -1,4 +1,5 @@
 import os
+import zipfile
 
 import lxml.etree as et
 
@@ -9,9 +10,12 @@ from task1.graph import *
 def parse_xml():
     XML_FOLDER = "byweb_for_course"
     for filename in os.listdir(XML_FOLDER):
-        if filename.endswith(".0.xml"):
+        if filename.endswith(".0.xml") or filename.endswith(".1.xml"):
             name = XML_FOLDER + os.sep + filename
             context = et.iterparse(name, tag='document')
+
+            zip_file = zipfile.ZipFile("documents" + os.sep + filename.strip(".xml") + ".zip", 'w',
+                                       zipfile.ZIP_DEFLATED)
 
             i = 0
             for (_, elem) in context:
@@ -21,20 +25,24 @@ def parse_xml():
                 elem.clear()
 
                 i += 1
-                if i == 3000:
+                if i == 30:
                     break
 
                 doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
-                docfile = open(f"documents/{doc.doc_id}.txt", "w+")
+                filepath = f"{doc.doc_id}.txt"
+                docfile = open(filepath, "w+")
                 docfile.write(doc.to_json())
+                docfile.close()
+                zip_file.write(filepath)
+                os.remove(filepath)
                 graph.add_document(doc)
-
+            zip_file.close()
 
 
 graph = LinkGraph()
 
 parse_xml()
 
-for id, pr in graph.pagerank().items():
-    pagerank_file = open(f"pageranks.txt", "a")
-    pagerank_file.write(str(id) + ":" + str(pr) + str("\n"))
+for doc_id, pr in graph.pagerank().items():
+    pagerank_file = open("pageranks.txt", "a")
+    pagerank_file.write(str(doc_id) + ":" + str(pr) + str("\n"))
