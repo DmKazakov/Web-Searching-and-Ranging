@@ -240,14 +240,13 @@ es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize
 recreate_index()
 
 start_indexing = time.time()
-for ok, result in parallel_bulk(es, action_generator(), queue_size=4, thread_count=4, chunk_size=1000):
+for ok, result in parallel_bulk(es, action_generator(), queue_size=1, thread_count=1, chunk_size=1):
     if not ok:
         print(result)
 print("Indexing time: ", time.time() - start_indexing)
 print("Index size in bytes: ", es.indices.stats()['_all']['primaries']['store']['size_in_bytes'])
 
 for id, pr in graph.pagerank().items():
-    # TODO: doc_type?
     es.update(index=INDEX, id=id, body={'doc': {'pagerank': pr}})
 
 QUERIES_FILE = "web2008_adhoc.xml"
@@ -267,7 +266,7 @@ for element in root.iterfind('task', namespaces=root.nsmap):
         relevance = document.attrib.get('relevance')
         document.clear()
         if relevance == 'vital':
-            queries[id].relevant.append(doc_id)
+            queries[id].relevant.add(doc_id)
     element.clear()
 
 start_queries_plain_text = time.time()
