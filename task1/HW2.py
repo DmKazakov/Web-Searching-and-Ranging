@@ -152,7 +152,7 @@ def search_static_and_dynamic_features_query(query_text, query_result_size=20):
                         'rank_feature': {
                             'field': 'pagerank',
                             'saturation': {
-                                'pivot': 10
+                                'pivot': 1e-6
                             }
                         }
                     }
@@ -165,20 +165,21 @@ def search_static_and_dynamic_features_query(query_text, query_result_size=20):
 
 
 def search_query_with_titles(query_text, query_result_size=20):
+    lemmatized_query = mystem.lemmatize(query_text)
     query = {
         'query': {
             'bool': {
                 'should': [
                     {
                         'match': {
-                            'content': query_text
+                            'stemmed': " ".join(lemmatized_query)
                         }
                     },
                     {
                         'match': {
                             'titles': {
-                                'query': query_text,
-                                'boost': '5.0'
+                                'query': " ".join(lemmatized_query),
+                                'boost': '1.5'
                             }
                         }
                     }
@@ -215,6 +216,7 @@ def average_precision(expected, actual, k=20):
 
 
 def search_statistics(search_function, queries):
+    queries_precision = {}
     total_precision = 0
     total_recall = 0
     total_rprecision = 0
@@ -225,6 +227,7 @@ def search_statistics(search_function, queries):
         doc_ids = [doc_id for (doc_id, _) in query_result]
         precision, recall, rprecision = precision_recall(queries[query_id].relevant,
                                                          doc_ids)
+        queries_precision[query_id] = precision
         total_precision += precision
         total_recall += recall
         total_rprecision += rprecision
@@ -233,7 +236,7 @@ def search_statistics(search_function, queries):
         if i % 100 == 0:
             print("still searching, now at i = ", i)
     return total_precision / len(queries), total_recall / len(queries), total_rprecision / len(queries), \
-           total_average_precision / len(queries)
+           total_average_precision / len(queries), queries_precision
 
 
 es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
@@ -307,3 +310,12 @@ print("Average recall for plain text with titles, k = 20: ", titles_statistics[1
 print("Average R-precision for plain text with titles: ", titles_statistics[2])
 print("Mean Average Precision for plain text with titles: ", titles_statistics[3])
 print("Queries execution time for plain text with titles: ", time.time() - start_queries_with_titles)
+
+max_diff_queries = []
+plain_text_precisions = plain_text_statistics[4]
+lemmatized_text_precisions = lemmatized_text_statistics[4]
+for id, query in queries.items():
+    if len(max_diff_queries) < 3:
+        max_diff_queries.append((query, abs(lemmatized_text_precisions[id] - plain_text_precisions[4])))
+    else:
+        for
