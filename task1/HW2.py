@@ -25,9 +25,14 @@ def action_generator():
     for filename in os.listdir(DOCS_FOLDER):
         name = DOCS_FOLDER + os.sep + filename
         zip_file = zipfile.ZipFile(name, 'r')
+
+        i = 0
         for filename in zip_file.filelist:
             try:
-                doc_json = zip_file.read(filename).decode(encoding='unicode_escape')
+                i += 1
+                if i == 10:
+                    break
+                doc_json = zip_file.read(filename).decode('utf-8')
                 yield create_action(filename.orig_filename.strip(".txt"), doc_json)
             except:
                 print(filename.orig_filename)
@@ -79,6 +84,11 @@ SETTINGS = {
                     'type': 'char_group',
                     'tokenize_on_chars': ["whitespace", "punctuation", "symbol", "\n"]
                 }
+            }
+        },
+        'index': {
+            'blocks': {
+                'read_only_allow_delete': 'false'
             }
         }
     }
@@ -186,12 +196,12 @@ def precision_recall(expected, actual_data, k=20):
     actual_rprecision = set(actual_data[:len(expected)])
     intersection_size = len(actual.intersection(expected))
     intersection_size_rprecision = len(actual_rprecision.intersection(expected))
+    expected_len = min(len(expected), k)
 
     precision = intersection_size / k
-    rprecision = (intersection_size_rprecision / len(expected)) if len(expected) > 0 else 0
-    recall = (intersection_size / len(expected)) if len(expected) > 0 else 0
+    rprecision = intersection_size_rprecision / expected_len
+    recall = intersection_size / expected_len
     return precision, recall, rprecision
-
 
 def average_precision(expected, actual, k=20):
     k = min(k, len(actual))
@@ -227,6 +237,7 @@ def search_statistics(search_function, queries):
 
 
 es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
+
 recreate_index()
 
 start_indexing = time.time()
@@ -242,6 +253,7 @@ while line:
     doc_id, pr = line.strip().split(":")
     es.update(index=INDEX, id=doc_id, body={'doc': {'pagerank': pr}})
     line = pagerank_file.readline()
+
 
 QUERIES_FILE = "web2008_adhoc.xml"
 RELEVANCE_FILE = "or_relevant-minus_table.xml"
@@ -262,6 +274,7 @@ for element in root.iterfind('task', namespaces=root.nsmap):
         if relevance == 'vital':
             queries[id].relevant.add(doc_id)
     element.clear()
+queries = {query_id: queries[query_id] for query_id in queries if len(queries[query_id].relevant) > 0}
 
 start_queries_plain_text = time.time()
 plain_text_statistics = search_statistics(search_query, queries)
@@ -270,7 +283,6 @@ print("Average recall for plain text, k = 20: ", plain_text_statistics[1])
 print("Average R-precision for plain text: ", plain_text_statistics[2])
 print("Mean Average Precision for plain text: ", plain_text_statistics[3])
 print("Queries execution time for plain text: ", time.time() - start_queries_plain_text)
-
 
 start_queries_lemmatized = time.time()
 lemmatized_text_statistics = search_statistics(search_stemmed_query, queries)

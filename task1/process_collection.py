@@ -10,23 +10,18 @@ from task1.graph import *
 def parse_xml():
     XML_FOLDER = "byweb_for_course"
     for filename in os.listdir(XML_FOLDER):
-        if filename.endswith(".0.xml") or filename.endswith(".1.xml"):
+        if filename.endswith(".xml"):
             name = XML_FOLDER + os.sep + filename
             context = et.iterparse(name, tag='document')
 
             zip_file = zipfile.ZipFile("documents" + os.sep + filename.strip(".xml") + ".zip", 'w',
                                        zipfile.ZIP_DEFLATED)
 
-            i = 0
             for (_, elem) in context:
                 content = elem[0].text
                 url = elem[1].text
                 doc_id = int(elem[2].text)
                 elem.clear()
-
-                i += 1
-                if i == 30:
-                    break
 
                 doc = Document(decode_base64_cp1251(content), doc_id, decode_base64_cp1251(url))
                 filepath = f"{doc.doc_id}.txt"
