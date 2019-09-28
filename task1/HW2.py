@@ -311,11 +311,10 @@ print("Average R-precision for plain text with titles: ", titles_statistics[2])
 print("Mean Average Precision for plain text with titles: ", titles_statistics[3])
 print("Queries execution time for plain text with titles: ", time.time() - start_queries_with_titles)
 
-max_diff_queries = []
 plain_text_precisions = plain_text_statistics[4]
 lemmatized_text_precisions = lemmatized_text_statistics[4]
-for id, query in queries.items():
-    if len(max_diff_queries) < 3:
-        max_diff_queries.append((query, abs(lemmatized_text_precisions[id] - plain_text_precisions[4])))
-    else:
-        for
+queries_precision_diff = [(abs(lemmatized_text_precisions[id] - plain_text_precisions[id]), id) for id in queries.keys()]
+for _, id in sorted(queries_precision_diff, reverse=True, key=lambda tup: tup[0])[:3]:
+    print("Query text:", queries[id].text)
+    print("Precision for plain text:", plain_text_precisions[id])
+    print("Precision for lemmatized text:", lemmatized_text_precisions[id])
