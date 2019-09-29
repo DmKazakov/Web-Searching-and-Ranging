@@ -1,49 +1,37 @@
-from pyvis.network import Network
 from urllib.parse import urlparse, urljoin
-import math
+from networkx import pagerank
+import networkx as nx
 
 
 class LinkGraph:
-    def __init__(self, min_indeg=300):
-        self.net = Network(notebook=True, directed=True)
-        self.nodes = {}
-        self.min_indeg = min_indeg
+    def __init__(self):
+        self.graph = nx.DiGraph()
+        self.nodes = []
+        self.urlToId = {}
 
     def add_document(self, doc):
         try:
             resolver = UrlResolver(doc.url)
             content_urls = resolver.resolve_urls(doc.content_urls)
-            self.nodes[resolver.base_url] = Node(resolver.base_url, content_urls)
+            self.nodes.append(Node(doc.doc_id, resolver.base_url, content_urls))
+            self.graph.add_node(doc.doc_id)
+            self.urlToId[resolver.base_url] = doc.doc_id
         except:
             return
 
-    def show(self, node_physics=True, edge_physics=True):
-        for node in self.nodes.values():
+    def build(self):
+        for node in self.nodes:
             for url in node.neighbors:
-                if url != node.url and url in self.nodes:
-                    node.outdeg += 1
-                    self.nodes[url].indeg += 1
+                if url != node.url and url in self.urlToId:
+                    self.graph.add_edge(node.id, self.urlToId[url])
 
-        for node in self.nodes.values():
-            if node.indeg >= self.min_indeg:
-                size = math.ceil((node.indeg - self.min_indeg + 1) / 150) + 5
-                self.net.add_node(node.url, title=node.url, size=size, label=' ', physics=node_physics)
-
-        for node in self.nodes.values():
-            for url in node.neighbors:
-                if url != node.url:
-                    try:
-                        self.net.add_edge(node.url, url, physics=edge_physics)
-                    except:
-                        pass
-
-        return self.net.show("links.html")
+    def pagerank(self):
+        return pagerank(self.graph)
 
 
 class Node:
-    def __init__(self, url, neighbors):
-        self.indeg = 0
-        self.outdeg = 0
+    def __init__(self, id, url, neighbors):
+        self.id = id
         self.url = url
         self.neighbors = neighbors
 

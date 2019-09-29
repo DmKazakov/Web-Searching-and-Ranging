@@ -3,11 +3,8 @@ import operator
 
 from statistics import mean
 from scipy.signal import savgol_filter
-from plotly.offline import init_notebook_mode, iplot
+from plotly.offline import plot
 import plotly.graph_objs as go
-
-
-init_notebook_mode(connected=True)
 
 
 def average_doc_size_in_words(docs):
@@ -54,7 +51,7 @@ def plot_figure(data, title, x_axis_title, y_axis_title):
         yaxis=go.layout.YAxis(title=go.layout.yaxis.Title(text=y_axis_title))
     )
     fig = go.Figure(data=[data], layout=layout)
-    iplot(fig)
+    plot(fig)
 
 
 def float_to_str(n):
