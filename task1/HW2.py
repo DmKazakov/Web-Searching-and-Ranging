@@ -145,16 +145,15 @@ def search_static_and_dynamic_features_query(query_text, query_result_size=20):
                 'should': [
                     {
                         'match': {
-                            'text': query_text
+                            'content': {
+                                'query': query_text
+                            }
                         }
                     },
                     {
                         'rank_feature': {
-                            'field': 'pagerank',
-                            'saturation': {
-                                'pivot': 1e-6
-                            }
-                        }
+                            'field': 'pagerank'
+                        },
                     }
                 ]
             }
@@ -172,14 +171,15 @@ def search_query_with_titles(query_text, query_result_size=20):
                 'should': [
                     {
                         'match': {
-                            'stemmed': " ".join(lemmatized_query)
+                            'stemmed': {
+                                'query': " ".join(lemmatized_query)
+                            }
                         }
                     },
                     {
                         'match': {
                             'titles': {
-                                'query': " ".join(lemmatized_query),
-                                'boost': '1.5'
+                                'query': " ".join(lemmatized_query)
                             }
                         }
                     }
@@ -197,12 +197,12 @@ def precision_recall(expected, actual_data, k=20):
     actual_rprecision = set(actual_data[:len(expected)])
     intersection_size = len(actual.intersection(expected))
     intersection_size_rprecision = len(actual_rprecision.intersection(expected))
-    expected_len = min(len(expected), k)
 
     precision = intersection_size / k
-    rprecision = intersection_size_rprecision / expected_len
-    recall = intersection_size / expected_len
+    rprecision = intersection_size_rprecision / len(expected)
+    recall = intersection_size / len(expected)
     return precision, recall, rprecision
+
 
 def average_precision(expected, actual, k=20):
     k = min(k, len(actual))
@@ -216,27 +216,24 @@ def average_precision(expected, actual, k=20):
 
 
 def search_statistics(search_function, queries):
-    queries_precision = {}
     total_precision = 0
     total_recall = 0
     total_rprecision = 0
     total_average_precision = 0
-    i = 0
+    f1 = {}
     for query_id in queries:
-        query_result = search_function(queries[query_id].text)
+        query_result = search_function(queries[query_id].text, max(20, len(queries[query_id].relevant)))
         doc_ids = [doc_id for (doc_id, _) in query_result]
         precision, recall, rprecision = precision_recall(queries[query_id].relevant,
                                                          doc_ids)
-        queries_precision[query_id] = 2 * precision * recall / (precision + recall)
+        f1[query_id] = (
+        precision, (2 * precision * recall / (precision + recall)) if (precision + recall) != 0 else 0, recall)
         total_precision += precision
         total_recall += recall
         total_rprecision += rprecision
         total_average_precision += average_precision(queries[query_id].relevant, doc_ids)
-        i += 1
-        if i % 100 == 0:
-            print("still searching, now at i = ", i)
     return total_precision / len(queries), total_recall / len(queries), total_rprecision / len(queries), \
-           total_average_precision / len(queries), queries_precision
+           total_average_precision / len(queries), f1
 
 
 es = Elasticsearch([{'host': 'localhost', 'port': 9200, 'timeout': 360, 'maxsize': 25}])
@@ -256,7 +253,6 @@ while line:
     doc_id, pr = line.strip().split(":")
     es.update(index=INDEX, id=doc_id, body={'doc': {'pagerank': pr}})
     line = pagerank_file.readline()
-
 
 QUERIES_FILE = "web2008_adhoc.xml"
 RELEVANCE_FILE = "or_relevant-minus_table.xml"
@@ -311,10 +307,12 @@ print("Average R-precision for plain text with titles: ", titles_statistics[2])
 print("Mean Average Precision for plain text with titles: ", titles_statistics[3])
 print("Queries execution time for plain text with titles: ", time.time() - start_queries_with_titles)
 
-plain_text_precisions = plain_text_statistics[4]
-lemmatized_text_precisions = lemmatized_text_statistics[4]
-queries_precision_diff = [(abs(lemmatized_text_precisions[id] - plain_text_precisions[id]), id) for id in queries.keys()]
-for _, id in sorted(queries_precision_diff, reverse=True, key=lambda tup: tup[0])[:3]:
+plain_text_f1 = plain_text_statistics[4]
+lemmatized_text_f1 = lemmatized_text_statistics[4]
+queries_precision_diff = [(abs(lemmatized_text_f1[id][1] - plain_text_f1[id][1]), id) for id in queries.keys()]
+for _, id in sorted(queries_precision_diff, reverse=True, key=lambda tup: tup[0])[:15]:
     print("Query text:", queries[id].text)
-    print("Precision for plain text:", plain_text_precisions[id])
-    print("Precision for lemmatized text:", lemmatized_text_precisions[id])
+    print("f1 and precision and recall for plain text:", plain_text_f1[id][1], plain_text_f1[id][0],
+          plain_text_f1[id][2])
+    print("f1 and precision and recall for lemmatized text:", lemmatized_text_f1[id][1], lemmatized_text_f1[id][0],
+          lemmatized_text_f1[id][2])
