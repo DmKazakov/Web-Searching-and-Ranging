@@ -227,7 +227,7 @@ def search_statistics(search_function, queries):
         doc_ids = [doc_id for (doc_id, _) in query_result]
         precision, recall, rprecision = precision_recall(queries[query_id].relevant,
                                                          doc_ids)
-        queries_precision[query_id] = precision
+        queries_precision[query_id] = 2 * precision * recall / (precision + recall)
         total_precision += precision
         total_recall += recall
         total_rprecision += rprecision
