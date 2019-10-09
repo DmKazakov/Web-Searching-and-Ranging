@@ -108,4 +108,6 @@ task1/stopwords
 task1/or_relevant-minus_table2008.xml
 task1/or_relevant-minus_table2009.xml
 task1/web2008_adhoc.xml
+task1/pageranks.txt
+task1/documents
 .idea

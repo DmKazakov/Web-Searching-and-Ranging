@@ -30,7 +30,7 @@ class Document:
         soup = BeautifulSoup(content, 'lxml')
 
         self.content_urls = [link.get('href') for link in soup.find_all('a')]
-        self.titles = [word for title in soup.find_all('title') for word in mystem.lemmatize(title.string)]
+        self.titles = [word for title in soup.find_all('title') if title.string is not None for word in mystem.lemmatize(title.string)]
 
         decompose_js(soup)
         soup = decompose_comments(soup)
