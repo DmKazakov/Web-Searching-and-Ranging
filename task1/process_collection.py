@@ -35,8 +35,8 @@ def parse_xml():
 
 
 graph = LinkGraph()
-
 parse_xml()
+graph.build()
 
 for doc_id, pr in graph.pagerank().items():
     pagerank_file = open("pageranks.txt", "a")
